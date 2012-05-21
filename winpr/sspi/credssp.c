@@ -135,16 +135,13 @@ int credssp_ntlm_client_init(rdpCredssp* credssp)
  * @param credssp
  */
 
-char* test_User = "username";
-char* test_Password = "password";
-
 int credssp_ntlm_server_init(rdpCredssp* credssp)
 {
 	freerdp* instance;
 	rdpSettings* settings = credssp->settings;
 	instance = (freerdp*) settings->instance;
 
-	credssp_SetContextIdentity(credssp, test_User, NULL, test_Password);
+	credssp_SetContextIdentity(credssp, "username", NULL, NULL);
 
 	sspi_SecBufferAlloc(&credssp->PublicKey, credssp->tls->public_key.length);
 	memcpy(credssp->PublicKey.pvBuffer, credssp->tls->public_key.data, credssp->tls->public_key.length);
@@ -420,8 +417,8 @@ int credssp_server_authenticate(rdpCredssp* credssp)
 	memset(&output_buffer, 0, sizeof(SecBuffer));
 	memset(&credssp->ContextSizes, 0, sizeof(SecPkgContext_Sizes));
 
-	fContextReq = ISC_REQ_REPLAY_DETECT | ISC_REQ_SEQUENCE_DETECT |
-			ISC_REQ_CONFIDENTIALITY | ISC_REQ_DELEGATE;
+	fContextReq = ASC_REQ_REPLAY_DETECT | ASC_REQ_SEQUENCE_DETECT |
+			ASC_REQ_CONFIDENTIALITY | ASC_REQ_DELEGATE;
 
 	while (true)
 	{
@@ -458,7 +455,7 @@ int credssp_server_authenticate(rdpCredssp* credssp)
 
 		status = credssp->table->AcceptSecurityContext(&credentials,
 			have_context? &credssp->context: NULL,
-			&input_buffer_desc, 0, SECURITY_NATIVE_DREP, &credssp->context,
+			&input_buffer_desc, fContextReq, SECURITY_NATIVE_DREP, &credssp->context,
 			&output_buffer_desc, &pfContextAttr, &expiration);
 
 		if (input_buffer.pvBuffer != NULL)
@@ -916,7 +913,10 @@ int credssp_recv(rdpCredssp* credssp)
 	status = tls_read(credssp->tls, s->data, stream_get_left(s));
 
 	if (status < 0)
+	{
+		stream_free(s) ;
 		return -1;
+	}
 
 	/* TSRequest */
 	ber_read_sequence_tag(s, &length);
