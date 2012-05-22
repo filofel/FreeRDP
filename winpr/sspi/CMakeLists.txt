@@ -41,10 +41,13 @@ set(WINPR_SSPI_NEGOTIATE_SRCS
 	Negotiate/negotiate.c
 	Negotiate/negotiate.h)
 
+set(WINPR_SSPI_CREDSSP_SRCS
+	CredSSP/credssp.c)
+
 set(WINPR_SSPI_SRCS
+	${WINPR_SSPI_CREDSSP_SRCS}
 	sspi.c
-	sspi.h
-	credssp.c)
+	sspi.h)
 
 if(NOT WITH_NATIVE_SSPI)
 	set(WINPR_SSPI_SRCS
@@ -56,7 +59,6 @@ else()
 	add_definitions(-DNATIVE_SSPI)
 endif()
 
-
 add_library(winpr-sspi ${WINPR_SSPI_SRCS})
 
 include_directories(${OPENSSL_INCLUDE_DIR})
@@ -64,7 +66,10 @@ include_directories(${ZLIB_INCLUDE_DIRS})
 
 set_target_properties(winpr-sspi PROPERTIES VERSION ${FREERDP_VERSION_FULL} SOVERSION ${FREERDP_VERSION} PREFIX "lib")
 
-target_link_libraries(winpr-sspi winpr-crt)
+if (NOT WIN32)
+	target_link_libraries(winpr-sspi winpr-crt)
+endif()
+
 target_link_libraries(winpr-sspi freerdp-utils)
 target_link_libraries(winpr-sspi freerdp-crypto)
 target_link_libraries(winpr-sspi ${ZLIB_LIBRARIES})	

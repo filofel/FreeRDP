@@ -1,8 +1,8 @@
 /**
  * WinPR: Windows Portable Runtime
- * NTLM Security Package (AV_PAIRs)
+ * Windows Registry
  *
- * Copyright 2011-2012 Marc-Andre Moreau <marcandre.moreau@gmail.com>
+ * Copyright 2012 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
  * limitations under the License.
  */
 
-#ifndef WINPR_SSPI_NTLM_AV_PAIRS_H
-#define WINPR_SSPI_NTLM_AV_PAIRS_H
+#include <libxml/parser.h>
+#include <libxml/xmlmemory.h>
 
-#include "ntlm.h"
+struct _registry_xml
+{
+	xmlDocPtr doc;
+	xmlNodePtr node;
+};
+typedef struct _registry_xml RegistryXml;
 
-void ntlm_input_av_pairs(NTLM_CONTEXT* context, STREAM* s);
-void ntlm_output_av_pairs(NTLM_CONTEXT* context, PSecBuffer buffer);
-void ntlm_populate_av_pairs(NTLM_CONTEXT* context);
-void ntlm_populate_server_av_pairs(NTLM_CONTEXT* context);
-void ntlm_print_av_pairs(NTLM_CONTEXT* context);
-void ntlm_free_av_pairs(NTLM_CONTEXT* context);
-
-#endif /* WINPR_SSPI_NTLM_AV_PAIRS_H */
+RegistryXml* registry_xml_new();
+RegistryXml* registry_xml_open();
+void registry_xml_close(RegistryXml* registry);
