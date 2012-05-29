@@ -21,9 +21,6 @@
 #define WINPR_SSPI_NEGOTIATE_PRIVATE_H
 
 #include <winpr/sspi.h>
-#include <freerdp/utils/unicode.h>
-
-#include "../Kerberos/kerberos.h"
 
 #include "../sspi.h"
 
@@ -41,9 +38,8 @@ typedef enum _NEGOTIATE_STATE NEGOTIATE_STATE;
 struct _NEGOTIATE_CONTEXT
 {
 	NEGOTIATE_STATE state;
-	UNICONV* uniconv;
-	uint32 NegotiateFlags;
-	CtxtHandle* auth_ctx;
+	UINT32 NegotiateFlags;
+	PCtxtHandle auth_ctx;
 	SEC_WINNT_AUTH_IDENTITY identity;
 	SecBuffer NegoInitMessage;
 };

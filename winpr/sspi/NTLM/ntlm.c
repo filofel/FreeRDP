@@ -26,6 +26,7 @@
 
 #include <winpr/crt.h>
 #include <winpr/sspi.h>
+#include <winpr/print.h>
 
 #include "ntlm.h"
 #include "../sspi.h"
@@ -33,59 +34,6 @@
 #include "ntlm_message.h"
 
 char* NTLM_PACKAGE_NAME = "NTLM";
-
-void ntlm_SetContextIdentity(NTLM_CONTEXT* context, SEC_WINNT_AUTH_IDENTITY* identity)
-{
-	context->identity.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
-
-	if (identity->Flags == SEC_WINNT_AUTH_IDENTITY_ANSI)
-	{
-		context->identity.UserLength = strlen((char*) identity->User) * 2;
-		context->identity.User = (UINT16*) malloc(context->identity.UserLength);
-		MultiByteToWideChar(CP_ACP, 0, (char*) identity->User, strlen((char*) identity->User),
-				(LPWSTR) context->identity.User, context->identity.UserLength / 2);
-
-		if (identity->DomainLength > 0)
-		{
-			context->identity.DomainLength = strlen((char*) identity->Domain) * 2;
-			context->identity.Domain = (UINT16*) malloc(context->identity.DomainLength);
-			MultiByteToWideChar(CP_ACP, 0, (char*) identity->Domain, strlen((char*) identity->Domain),
-					(LPWSTR) context->identity.Domain, context->identity.DomainLength / 2);
-		}
-		else
-		{
-			context->identity.Domain = (UINT16*) NULL;
-			context->identity.DomainLength = 0;
-		}
-
-		context->identity.PasswordLength = strlen((char*) identity->Password) * 2;
-		context->identity.Password = (UINT16*) malloc(context->identity.PasswordLength);
-		MultiByteToWideChar(CP_ACP, 0, (char*) identity->Password, strlen((char*) identity->Password),
-				(LPWSTR) context->identity.Password, context->identity.PasswordLength / 2);
-	}
-	else
-	{
-		context->identity.User = (UINT16*) malloc(identity->UserLength);
-		memcpy(context->identity.User, identity->User, identity->UserLength);
-		context->identity.UserLength = identity->UserLength;
-
-		if (identity->DomainLength > 0)
-		{
-			context->identity.Domain = (UINT16*) malloc(identity->DomainLength);
-			memcpy(context->identity.Domain, identity->Domain, identity->DomainLength);
-			context->identity.DomainLength = identity->DomainLength;
-		}
-		else
-		{
-			context->identity.Domain = (UINT16*) NULL;
-			context->identity.DomainLength = 0;
-		}
-
-		context->identity.Password = (UINT16*) malloc(identity->PasswordLength);
-		memcpy(context->identity.Password, identity->Password, identity->PasswordLength);
-		context->identity.PasswordLength = identity->PasswordLength;
-	}
-}
 
 void ntlm_SetContextWorkstation(NTLM_CONTEXT* context, char* Workstation)
 {
@@ -107,14 +55,16 @@ NTLM_CONTEXT* ntlm_ContextNew()
 {
 	NTLM_CONTEXT* context;
 
-	context = xnew(NTLM_CONTEXT);
+	context = (NTLM_CONTEXT*) malloc(sizeof(NTLM_CONTEXT));
+	ZeroMemory(context, sizeof(NTLM_CONTEXT));
 
 	if (context != NULL)
 	{
-		context->ntlm_v2 = false;
+		context->ntlm_v2 = 0;
 		context->NegotiateFlags = 0;
 		context->state = NTLM_STATE_INITIAL;
-		context->av_pairs = (AV_PAIRS*) xzalloc(sizeof(AV_PAIRS));
+		context->av_pairs = (AV_PAIRS*) malloc(sizeof(AV_PAIRS));
+		ZeroMemory(context->av_pairs, sizeof(AV_PAIRS));
 	}
 
 	return context;
@@ -125,8 +75,6 @@ void ntlm_ContextFree(NTLM_CONTEXT* context)
 	if (!context)
 		return;
 
-	crypto_rc4_free(context->SendRc4Seal);
-	crypto_rc4_free(context->RecvRc4Seal);
 	sspi_SecBufferFree(&context->NegotiateMessage);
 	sspi_SecBufferFree(&context->ChallengeMessage);
 	sspi_SecBufferFree(&context->AuthenticateMessage);
@@ -156,7 +104,7 @@ SECURITY_STATUS SEC_ENTRY ntlm_AcquireCredentialsHandleW(SEC_WCHAR* pszPrincipal
 		credentials = sspi_CredentialsNew();
 
 		identity = (SEC_WINNT_AUTH_IDENTITY*) pAuthData;
-		memcpy(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
+		CopyMemory(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
 
 		sspi_SecureHandleSetLowerPointer(phCredential, (void*) credentials);
 		sspi_SecureHandleSetUpperPointer(phCredential, (void*) NTLM_PACKAGE_NAME);
@@ -168,7 +116,7 @@ SECURITY_STATUS SEC_ENTRY ntlm_AcquireCredentialsHandleW(SEC_WCHAR* pszPrincipal
 		credentials = sspi_CredentialsNew();
 
 		identity = (SEC_WINNT_AUTH_IDENTITY*) pAuthData;
-		memcpy(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
+		CopyMemory(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
 
 		sspi_SecureHandleSetLowerPointer(phCredential, (void*) credentials);
 		sspi_SecureHandleSetUpperPointer(phCredential, (void*) NTLM_PACKAGE_NAME);
@@ -191,7 +139,7 @@ SECURITY_STATUS SEC_ENTRY ntlm_AcquireCredentialsHandleA(SEC_CHAR* pszPrincipal,
 		credentials = sspi_CredentialsNew();
 
 		identity = (SEC_WINNT_AUTH_IDENTITY*) pAuthData;
-		memcpy(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
+		CopyMemory(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
 
 		sspi_SecureHandleSetLowerPointer(phCredential, (void*) credentials);
 		sspi_SecureHandleSetUpperPointer(phCredential, (void*) NTLM_PACKAGE_NAME);
@@ -203,7 +151,7 @@ SECURITY_STATUS SEC_ENTRY ntlm_AcquireCredentialsHandleA(SEC_CHAR* pszPrincipal,
 		credentials = sspi_CredentialsNew();
 
 		identity = (SEC_WINNT_AUTH_IDENTITY*) pAuthData;
-		memcpy(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
+		CopyMemory(&(credentials->identity), identity, sizeof(SEC_WINNT_AUTH_IDENTITY));
 
 		sspi_SecureHandleSetLowerPointer(phCredential, (void*) credentials);
 		sspi_SecureHandleSetUpperPointer(phCredential, (void*) NTLM_PACKAGE_NAME);
@@ -289,13 +237,13 @@ SECURITY_STATUS SEC_ENTRY ntlm_AcceptSecurityContext(PCredHandle phCredential, P
 		if (!context)
 			return SEC_E_INSUFFICIENT_MEMORY;
 
-		context->server = true;
+		context->server = 1;
 
 		if (fContextReq & ASC_REQ_CONFIDENTIALITY)
-			context->confidentiality = true;
+			context->confidentiality = 1;
 
 		credentials = (CREDENTIALS*) sspi_SecureHandleGetLowerPointer(phCredential);
-		ntlm_SetContextIdentity(context, &credentials->identity);
+		sspi_CopyAuthIdentity(&context->identity, &credentials->identity);
 
 		ntlm_SetContextTargetName(context, "FreeRDP");
 
@@ -404,11 +352,11 @@ SECURITY_STATUS SEC_ENTRY ntlm_InitializeSecurityContextA(PCredHandle phCredenti
 			return SEC_E_INSUFFICIENT_MEMORY;
 
 		if (fContextReq & ISC_REQ_CONFIDENTIALITY)
-			context->confidentiality = true;
+			context->confidentiality = 1;
 
 		credentials = (CREDENTIALS*) sspi_SecureHandleGetLowerPointer(phCredential);
 
-		ntlm_SetContextIdentity(context, &credentials->identity);
+		sspi_CopyAuthIdentity(&context->identity, &credentials->identity);
 		ntlm_SetContextWorkstation(context, "WORKSTATION");
 
 		sspi_SecureHandleSetLowerPointer(phNewContext, context);
@@ -564,7 +512,7 @@ SECURITY_STATUS SEC_ENTRY ntlm_EncryptMessage(PCtxtHandle phContext, ULONG fQOP,
 	/* Copy original data buffer */
 	length = data_buffer->cbBuffer;
 	data = malloc(length);
-	memcpy(data, data_buffer->pvBuffer, length);
+	CopyMemory(data, data_buffer->pvBuffer, length);
 
 	/* Compute the HMAC-MD5 hash of ConcatenationOf(seq_num,data) using the client signing key */
 	HMAC_CTX_init(&hmac);
@@ -577,36 +525,36 @@ SECURITY_STATUS SEC_ENTRY ntlm_EncryptMessage(PCtxtHandle phContext, ULONG fQOP,
 	/* Encrypt message using with RC4, result overwrites original buffer */
 
 	if (context->confidentiality)
-		crypto_rc4(context->SendRc4Seal, length, data, data_buffer->pvBuffer);
+		RC4(&context->SendRc4Seal, length, data, data_buffer->pvBuffer);
 	else
-		memcpy(data_buffer->pvBuffer, data, length);
+		CopyMemory(data_buffer->pvBuffer, data, length);
 
 #ifdef WITH_DEBUG_NTLM
 	printf("Data Buffer (length = %d)\n", length);
-	freerdp_hexdump(data, length);
+	winpr_HexDump(data, length);
 	printf("\n");
 
 	printf("Encrypted Data Buffer (length = %d)\n", (int) data_buffer->cbBuffer);
-	freerdp_hexdump(data_buffer->pvBuffer, data_buffer->cbBuffer);
+	winpr_HexDump(data_buffer->pvBuffer, data_buffer->cbBuffer);
 	printf("\n");
 #endif
 
 	free(data);
 
 	/* RC4-encrypt first 8 bytes of digest */
-	crypto_rc4(context->SendRc4Seal, 8, digest, checksum);
+	RC4(&context->SendRc4Seal, 8, digest, checksum);
 
 	signature = (BYTE*) signature_buffer->pvBuffer;
 
 	/* Concatenate version, ciphertext and sequence number to build signature */
-	memcpy(signature, (void*) &version, 4);
-	memcpy(&signature[4], (void*) checksum, 8);
-	memcpy(&signature[12], (void*) &(MessageSeqNo), 4);
+	CopyMemory(signature, (void*) &version, 4);
+	CopyMemory(&signature[4], (void*) checksum, 8);
+	CopyMemory(&signature[12], (void*) &(MessageSeqNo), 4);
 	context->SendSeqNum++;
 
 #ifdef WITH_DEBUG_NTLM
 	printf("Signature (length = %d)\n", (int) signature_buffer->cbBuffer);
-	freerdp_hexdump(signature_buffer->pvBuffer, signature_buffer->cbBuffer);
+	winpr_HexDump(signature_buffer->pvBuffer, signature_buffer->cbBuffer);
 	printf("\n");
 #endif
 
@@ -646,10 +594,14 @@ SECURITY_STATUS SEC_ENTRY ntlm_DecryptMessage(PCtxtHandle phContext, PSecBufferD
 	/* Copy original data buffer */
 	length = data_buffer->cbBuffer;
 	data = malloc(length);
-	memcpy(data, data_buffer->pvBuffer, length);
+	CopyMemory(data, data_buffer->pvBuffer, length);
 
-	/* Decrypt message using with RC4 */
-	crypto_rc4(context->RecvRc4Seal, length, data, data_buffer->pvBuffer);
+	/* Decrypt message using with RC4, result overwrites original buffer */
+
+	if (context->confidentiality)
+		RC4(&context->RecvRc4Seal, length, data, data_buffer->pvBuffer);
+	else
+		CopyMemory(data_buffer->pvBuffer, data, length);
 
 	/* Compute the HMAC-MD5 hash of ConcatenationOf(seq_num,data) using the client signing key */
 	HMAC_CTX_init(&hmac);
@@ -661,29 +613,35 @@ SECURITY_STATUS SEC_ENTRY ntlm_DecryptMessage(PCtxtHandle phContext, PSecBufferD
 
 #ifdef WITH_DEBUG_NTLM
 	printf("Encrypted Data Buffer (length = %d)\n", length);
-	freerdp_hexdump(data, length);
+	winpr_HexDump(data, length);
 	printf("\n");
 
 	printf("Data Buffer (length = %d)\n", (int) data_buffer->cbBuffer);
-	freerdp_hexdump(data_buffer->pvBuffer, data_buffer->cbBuffer);
+	winpr_HexDump(data_buffer->pvBuffer, data_buffer->cbBuffer);
 	printf("\n");
 #endif
 
 	free(data);
 
 	/* RC4-encrypt first 8 bytes of digest */
-	crypto_rc4(context->RecvRc4Seal, 8, digest, checksum);
+	RC4(&context->RecvRc4Seal, 8, digest, checksum);
 
 	/* Concatenate version, ciphertext and sequence number to build signature */
-	memcpy(expected_signature, (void*) &version, 4);
-	memcpy(&expected_signature[4], (void*) checksum, 8);
-	memcpy(&expected_signature[12], (void*) &(MessageSeqNo), 4);
+	CopyMemory(expected_signature, (void*) &version, 4);
+	CopyMemory(&expected_signature[4], (void*) checksum, 8);
+	CopyMemory(&expected_signature[12], (void*) &(MessageSeqNo), 4);
 	context->RecvSeqNum++;
 
 	if (memcmp(signature_buffer->pvBuffer, expected_signature, 16) != 0)
 	{
 		/* signature verification failed! */
 		printf("signature verification failed, something nasty is going on!\n");
+
+		printf("Expected Signature:\n");
+		winpr_HexDump(expected_signature, 16);
+		printf("Actual Signature:\n");
+		winpr_HexDump(signature_buffer->pvBuffer, 16);
+
 		return SEC_E_MESSAGE_ALTERED;
 	}
 
@@ -699,26 +657,6 @@ SECURITY_STATUS SEC_ENTRY ntlm_VerifySignature(PCtxtHandle phContext, PSecBuffer
 {
 	return SEC_E_OK;
 }
-
-const SecPkgInfoA NTLM_SecPkgInfoA =
-{
-	0x00082B37, /* fCapabilities */
-	1, /* wVersion */
-	0x000A, /* wRPCID */
-	0x00000B48, /* cbMaxToken */
-	"NTLM", /* Name */
-	"NTLM Security Package" /* Comment */
-};
-
-const SecPkgInfoW NTLM_SecPkgInfoW =
-{
-	0x00082B37, /* fCapabilities */
-	1, /* wVersion */
-	0x000A, /* wRPCID */
-	0x00000B48, /* cbMaxToken */
-	L"NTLM", /* Name */
-	L"NTLM Security Package" /* Comment */
-};
 
 const SecurityFunctionTableA NTLM_SecurityFunctionTableA =
 {
@@ -782,4 +720,24 @@ const SecurityFunctionTableW NTLM_SecurityFunctionTableW =
 	ntlm_EncryptMessage, /* EncryptMessage */
 	ntlm_DecryptMessage, /* DecryptMessage */
 	NULL, /* SetContextAttributes */
+};
+
+const SecPkgInfoA NTLM_SecPkgInfoA =
+{
+	0x00082B37, /* fCapabilities */
+	1, /* wVersion */
+	0x000A, /* wRPCID */
+	0x00000B48, /* cbMaxToken */
+	"NTLM", /* Name */
+	"NTLM Security Package" /* Comment */
+};
+
+const SecPkgInfoW NTLM_SecPkgInfoW =
+{
+	0x00082B37, /* fCapabilities */
+	1, /* wVersion */
+	0x000A, /* wRPCID */
+	0x00000B48, /* cbMaxToken */
+	L"NTLM", /* Name */
+	L"NTLM Security Package" /* Comment */
 };

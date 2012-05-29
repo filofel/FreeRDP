@@ -24,9 +24,7 @@ typedef struct rdp_credssp rdpCredssp;
 
 #include <freerdp/api.h>
 #include <freerdp/freerdp.h>
-#include <freerdp/utils/memory.h>
 #include <freerdp/utils/stream.h>
-#include <freerdp/utils/hexdump.h>
 
 #include <winpr/sspi.h>
 
@@ -40,7 +38,6 @@ struct rdp_credssp
 	boolean server;
 	int send_seq_num;
 	int recv_seq_num;
-	UNICONV* uniconv;
 	freerdp* instance;
 	CtxtHandle context;
 	rdpSettings* settings;
@@ -51,21 +48,11 @@ struct rdp_credssp
 	SecBuffer ts_credentials;
 	CryptoRc4 rc4_seal_state;
 	SEC_WINNT_AUTH_IDENTITY identity;
-	SecurityFunctionTable* table;
+	PSecurityFunctionTable table;
 	SecPkgContext_Sizes ContextSizes;
 };
 
 FREERDP_API int credssp_authenticate(rdpCredssp* credssp);
-
-FREERDP_API void credssp_send(rdpCredssp* credssp);
-FREERDP_API int credssp_recv(rdpCredssp* credssp);
-
-FREERDP_API void credssp_buffer_print(rdpCredssp* credssp);
-FREERDP_API void credssp_buffer_free(rdpCredssp* credssp);
-
-SECURITY_STATUS credssp_verify_public_key_echo(rdpCredssp* credssp);
-FREERDP_API void credssp_encode_ts_credentials(rdpCredssp* credssp);
-SECURITY_STATUS credssp_encrypt_ts_credentials(rdpCredssp* credssp);
 
 FREERDP_API rdpCredssp* credssp_new(freerdp* instance, rdpTls* tls, rdpSettings* settings);
 FREERDP_API void credssp_free(rdpCredssp* credssp);

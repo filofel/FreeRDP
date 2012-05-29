@@ -27,19 +27,13 @@ set(WINPR_SSPI_NTLM_SRCS
 	NTLM/ntlm.c
 	NTLM/ntlm.h)
 
-set(WINPR_SSPI_KERBEROS_SRCS
-	Kerberos/kerberos_crypto.c
-	Kerberos/kerberos_crypto.h
-	Kerberos/kerberos_decode.c
-	Kerberos/kerberos_decode.h
-	Kerberos/kerberos_encode.c
-	Kerberos/kerberos_encode.h
-	Kerberos/kerberos.c
-	Kerberos/kerberos.h)
-	
 set(WINPR_SSPI_NEGOTIATE_SRCS
 	Negotiate/negotiate.c
 	Negotiate/negotiate.h)
+
+set(WINPR_SSPI_SCHANNEL_SRCS
+	Schannel/schannel.c
+	Schannel/schannel.h)
 
 set(WINPR_SSPI_CREDSSP_SRCS
 	CredSSP/credssp.c)
@@ -54,6 +48,7 @@ if(NOT WITH_NATIVE_SSPI)
 		${WINPR_SSPI_NTLM_SRCS}
 		${WINPR_SSPI_KERBEROS_SRCS}
 		${WINPR_SSPI_NEGOTIATE_SRCS}
+		${WINPR_SSPI_SCHANNEL_SRCS}
 		${WINPR_SSPI_SRCS})
 else()
 	add_definitions(-DNATIVE_SSPI)
@@ -61,8 +56,8 @@ endif()
 
 add_library(winpr-sspi ${WINPR_SSPI_SRCS})
 
-include_directories(${OPENSSL_INCLUDE_DIR})
 include_directories(${ZLIB_INCLUDE_DIRS})
+include_directories(${OPENSSL_INCLUDE_DIR})
 
 set_target_properties(winpr-sspi PROPERTIES VERSION ${FREERDP_VERSION_FULL} SOVERSION ${FREERDP_VERSION} PREFIX "lib")
 
@@ -70,9 +65,9 @@ if (NOT WIN32)
 	target_link_libraries(winpr-sspi winpr-crt)
 endif()
 
-target_link_libraries(winpr-sspi freerdp-utils)
-target_link_libraries(winpr-sspi freerdp-crypto)
-target_link_libraries(winpr-sspi ${ZLIB_LIBRARIES})	
+target_link_libraries(winpr-sspi winpr-utils)
+target_link_libraries(winpr-sspi ${ZLIB_LIBRARIES})
+target_link_libraries(winpr-sspi ${OPENSSL_LIBRARIES})
 
 install(TARGETS winpr-sspi DESTINATION ${CMAKE_INSTALL_LIBDIR})
 

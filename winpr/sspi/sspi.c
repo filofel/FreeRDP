@@ -87,14 +87,14 @@ const SecurityFunctionTableW_NAME SecurityFunctionTableW_NAME_LIST[] =
 struct _CONTEXT_BUFFER_ALLOC_ENTRY
 {
 	void* contextBuffer;
-	uint32 allocatorIndex;
+	UINT32 allocatorIndex;
 };
 typedef struct _CONTEXT_BUFFER_ALLOC_ENTRY CONTEXT_BUFFER_ALLOC_ENTRY;
 
 struct _CONTEXT_BUFFER_ALLOC_TABLE
 {
-	uint32 cEntries;
-	uint32 cMaxEntries;
+	UINT32 cEntries;
+	UINT32 cMaxEntries;
 	CONTEXT_BUFFER_ALLOC_ENTRY* entries;
 };
 typedef struct _CONTEXT_BUFFER_ALLOC_TABLE CONTEXT_BUFFER_ALLOC_TABLE;
@@ -110,7 +110,8 @@ void sspi_ContextBufferAllocTableNew()
 
 	size = sizeof(CONTEXT_BUFFER_ALLOC_ENTRY) * ContextBufferAllocTable.cMaxEntries;
 
-	ContextBufferAllocTable.entries = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
+	ContextBufferAllocTable.entries = malloc(size);
+	ZeroMemory(ContextBufferAllocTable.entries, size);
 }
 
 void sspi_ContextBufferAllocTableGrow()
@@ -128,10 +129,10 @@ void sspi_ContextBufferAllocTableGrow()
 void sspi_ContextBufferAllocTableFree()
 {
 	ContextBufferAllocTable.cEntries = ContextBufferAllocTable.cMaxEntries = 0;
-	HeapFree(GetProcessHeap(), 0, ContextBufferAllocTable.entries);
+	free(ContextBufferAllocTable.entries);
 }
 
-void* sspi_ContextBufferAlloc(uint32 allocatorIndex, size_t size)
+void* sspi_ContextBufferAlloc(UINT32 allocatorIndex, size_t size)
 {
 	int index;
 	void* contextBuffer;
@@ -140,7 +141,8 @@ void* sspi_ContextBufferAlloc(uint32 allocatorIndex, size_t size)
 	{
 		if (ContextBufferAllocTable.entries[index].contextBuffer == NULL)
 		{
-			contextBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
+			contextBuffer = malloc(size);
+			ZeroMemory(contextBuffer, size);
 			ContextBufferAllocTable.cEntries++;
 
 			ContextBufferAllocTable.entries[index].contextBuffer = contextBuffer;
@@ -163,7 +165,8 @@ CREDENTIALS* sspi_CredentialsNew()
 {
 	CREDENTIALS* credentials;
 
-	credentials = (CREDENTIALS*) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(CREDENTIALS));
+	credentials = (CREDENTIALS*) malloc(sizeof(CREDENTIALS));
+	ZeroMemory(credentials, sizeof(CREDENTIALS));
 
 	if (credentials != NULL)
 	{
@@ -178,25 +181,26 @@ void sspi_CredentialsFree(CREDENTIALS* credentials)
 	if (!credentials)
 		return;
 
-	HeapFree(GetProcessHeap(), 0, credentials);
+	free(credentials);
 }
 
 void sspi_SecBufferAlloc(PSecBuffer SecBuffer, size_t size)
 {
 	SecBuffer->cbBuffer = size;
-	SecBuffer->pvBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
+	SecBuffer->pvBuffer = malloc(size);
+	ZeroMemory(SecBuffer->pvBuffer, SecBuffer->cbBuffer);
 }
 
 void sspi_SecBufferFree(PSecBuffer SecBuffer)
 {
-	SecBuffer->cbBuffer = 0;
-	HeapFree(GetProcessHeap(), 0, SecBuffer->pvBuffer);
+	free(SecBuffer->pvBuffer);
 	SecBuffer->pvBuffer = NULL;
+	SecBuffer->cbBuffer = 0;
 }
 
 SecHandle* sspi_SecureHandleAlloc()
 {
-	SecHandle* handle = malloc(sizeof(SecHandle));
+	SecHandle* handle = (SecHandle*) malloc(sizeof(SecHandle));
 	sspi_SecureHandleInit(handle);
 	return handle;
 }
@@ -265,6 +269,69 @@ void sspi_SecureHandleFree(SecHandle* handle)
 	free(handle);
 }
 
+void sspi_SetAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, char* user, char* domain, char* password)
+{
+	identity->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+
+	identity->UserLength = strlen(user) * 2;
+	identity->User = (UINT16*) malloc(identity->UserLength);
+	MultiByteToWideChar(CP_ACP, 0, user, strlen(user),
+			(LPWSTR) identity->User, identity->UserLength / 2);
+
+	if (domain)
+	{
+		identity->DomainLength = strlen(domain) * 2;
+		identity->Domain = (UINT16*) malloc(identity->DomainLength);
+		MultiByteToWideChar(CP_ACP, 0, domain, strlen(domain),
+				(LPWSTR) identity->Domain, identity->DomainLength / 2);
+	}
+	else
+	{
+		identity->Domain = (UINT16*) NULL;
+		identity->DomainLength = 0;
+	}
+
+	if (password != NULL)
+	{
+		identity->PasswordLength = strlen(password) * 2;
+		identity->Password = (UINT16*) malloc(identity->PasswordLength);
+		MultiByteToWideChar(CP_ACP, 0, password, strlen(password),
+				(LPWSTR) identity->Password, identity->PasswordLength / 2);
+	}
+	else
+	{
+		identity->Password = NULL;
+		identity->PasswordLength = 0;
+	}
+}
+
+void sspi_CopyAuthIdentity(SEC_WINNT_AUTH_IDENTITY* identity, SEC_WINNT_AUTH_IDENTITY* srcIdentity)
+{
+	if (identity->Flags == SEC_WINNT_AUTH_IDENTITY_ANSI)
+	{
+		sspi_SetAuthIdentity(identity, (char*) srcIdentity->User,
+				(char*) srcIdentity->Domain, (char*) srcIdentity->Password);
+
+		identity->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+
+		return;
+	}
+
+	identity->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+
+	identity->UserLength = srcIdentity->UserLength;
+	identity->User = malloc(identity->UserLength);
+	CopyMemory(identity->User, srcIdentity->User, identity->UserLength);
+
+	identity->DomainLength = srcIdentity->DomainLength;
+	identity->Domain = malloc(identity->DomainLength);
+	CopyMemory(identity->Domain, srcIdentity->Domain, identity->DomainLength);
+
+	identity->PasswordLength = srcIdentity->PasswordLength;
+	identity->Password = malloc(identity->PasswordLength);
+	CopyMemory(identity->Password, srcIdentity->Password, identity->PasswordLength);
+}
+
 void sspi_GlobalInit()
 {
 	sspi_ContextBufferAllocTableNew();
@@ -280,7 +347,7 @@ void sspi_GlobalFinish()
 SecurityFunctionTableA* sspi_GetSecurityFunctionTableByNameA(const SEC_CHAR* Name)
 {
 	int index;
-	uint32 cPackages;
+	UINT32 cPackages;
 
 	cPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
 
@@ -298,7 +365,7 @@ SecurityFunctionTableA* sspi_GetSecurityFunctionTableByNameA(const SEC_CHAR* Nam
 SecurityFunctionTableW* sspi_GetSecurityFunctionTableByNameW(const SEC_WCHAR* Name)
 {
 	int index;
-	uint32 cPackages;
+	UINT32 cPackages;
 
 	cPackages = sizeof(SecPkgInfoW_LIST) / sizeof(*(SecPkgInfoW_LIST));
 
@@ -319,7 +386,7 @@ void FreeContextBuffer_QuerySecurityPackageInfo(void* contextBuffer);
 void sspi_ContextBufferFree(void* contextBuffer)
 {
 	int index;
-	uint32 allocatorIndex;
+	UINT32 allocatorIndex;
 
 	for (index = 0; index < (int) ContextBufferAllocTable.cMaxEntries; index++)
 	{
@@ -349,11 +416,11 @@ void sspi_ContextBufferFree(void* contextBuffer)
 
 /* Package Management */
 
-SECURITY_STATUS SEC_ENTRY EnumerateSecurityPackagesW(uint32* pcPackages, PSecPkgInfoW* ppPackageInfo)
+SECURITY_STATUS SEC_ENTRY EnumerateSecurityPackagesW(UINT32* pcPackages, PSecPkgInfoW* ppPackageInfo)
 {
 	int index;
 	size_t size;
-	uint32 cPackages;
+	UINT32 cPackages;
 	SecPkgInfoW* pPackageInfo;
 
 	cPackages = sizeof(SecPkgInfoW_LIST) / sizeof(*(SecPkgInfoW_LIST));
@@ -377,11 +444,11 @@ SECURITY_STATUS SEC_ENTRY EnumerateSecurityPackagesW(uint32* pcPackages, PSecPkg
 	return SEC_E_OK;
 }
 
-SECURITY_STATUS SEC_ENTRY EnumerateSecurityPackagesA(uint32* pcPackages, PSecPkgInfoA* ppPackageInfo)
+SECURITY_STATUS SEC_ENTRY EnumerateSecurityPackagesA(UINT32* pcPackages, PSecPkgInfoA* ppPackageInfo)
 {
 	int index;
 	size_t size;
-	uint32 cPackages;
+	UINT32 cPackages;
 	SecPkgInfoA* pPackageInfo;
 
 	cPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
@@ -408,7 +475,7 @@ SECURITY_STATUS SEC_ENTRY EnumerateSecurityPackagesA(uint32* pcPackages, PSecPkg
 void FreeContextBuffer_EnumerateSecurityPackages(void* contextBuffer)
 {
 	int index;
-	uint32 cPackages;
+	UINT32 cPackages;
 	SecPkgInfoA* pPackageInfo = (SecPkgInfoA*) contextBuffer;
 
 	cPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
@@ -439,7 +506,7 @@ SECURITY_STATUS SEC_ENTRY QuerySecurityPackageInfoW(SEC_WCHAR* pszPackageName, P
 {
 	int index;
 	size_t size;
-	uint32 cPackages;
+	UINT32 cPackages;
 	SecPkgInfoW* pPackageInfo;
 
 	cPackages = sizeof(SecPkgInfoW_LIST) / sizeof(*(SecPkgInfoW_LIST));
@@ -473,7 +540,7 @@ SECURITY_STATUS SEC_ENTRY QuerySecurityPackageInfoA(SEC_CHAR* pszPackageName, PS
 {
 	int index;
 	size_t size;
-	uint32 cPackages;
+	UINT32 cPackages;
 	SecPkgInfoA* pPackageInfo;
 
 	cPackages = sizeof(SecPkgInfoA_LIST) / sizeof(*(SecPkgInfoA_LIST));
@@ -556,7 +623,7 @@ SECURITY_STATUS SEC_ENTRY AcquireCredentialsHandleA(SEC_CHAR* pszPrincipal, SEC_
 	return status;
 }
 
-SECURITY_STATUS SEC_ENTRY ExportSecurityContext(PCtxtHandle phContext, uint32 fFlags, PSecBuffer pPackedContext, void* pToken)
+SECURITY_STATUS SEC_ENTRY ExportSecurityContext(PCtxtHandle phContext, UINT32 fFlags, PSecBuffer pPackedContext, void* pToken)
 {
 	return SEC_E_OK;
 }

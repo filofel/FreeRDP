@@ -21,9 +21,16 @@
 #define WINPR_SSPI_NTLM_PRIVATE_H
 
 #include <winpr/sspi.h>
-#include <freerdp/crypto/crypto.h>
+#include <winpr/windows.h>
 
-#include <freerdp/utils/unicode.h>
+#include <time.h>
+#include <openssl/des.h>
+#include <openssl/md4.h>
+#include <openssl/md5.h>
+#include <openssl/rc4.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+#include <openssl/engine.h>
 
 #include "../sspi.h"
 
@@ -77,14 +84,14 @@ typedef enum _AV_ID AV_ID;
 
 struct _NTLM_CONTEXT
 {
-	boolean server;
-	boolean ntlm_v2;
+	BOOL server;
+	BOOL ntlm_v2;
 	NTLM_STATE state;
 	int SendSeqNum;
 	int RecvSeqNum;
-	boolean confidentiality;
-	CryptoRc4 SendRc4Seal;
-	CryptoRc4 RecvRc4Seal;
+	BOOL confidentiality;
+	RC4_KEY SendRc4Seal;
+	RC4_KEY RecvRc4Seal;
 	BYTE* SendSigningKey;
 	BYTE* RecvSigningKey;
 	BYTE* SendSealingKey;
