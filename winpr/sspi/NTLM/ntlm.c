@@ -62,6 +62,7 @@ NTLM_CONTEXT* ntlm_ContextNew()
 	{
 		context->ntlm_v2 = 0;
 		context->NegotiateFlags = 0;
+		context->LmCompatibilityLevel = 3;
 		context->state = NTLM_STATE_INITIAL;
 		context->av_pairs = (AV_PAIRS*) malloc(sizeof(AV_PAIRS));
 		ZeroMemory(context->av_pairs, sizeof(AV_PAIRS));
@@ -732,12 +733,21 @@ const SecPkgInfoA NTLM_SecPkgInfoA =
 	"NTLM Security Package" /* Comment */
 };
 
+WCHAR NTLM_SecPkgInfoW_Name[] = { 'N','T','L','M','\0' };
+
+WCHAR NTLM_SecPkgInfoW_Comment[] =
+{
+	'N','T','L','M',' ',
+	'S','e','c','u','r','i','t','y',' ',
+	'P','a','c','k','a','g','e','\0'
+};
+
 const SecPkgInfoW NTLM_SecPkgInfoW =
 {
 	0x00082B37, /* fCapabilities */
 	1, /* wVersion */
 	0x000A, /* wRPCID */
 	0x00000B48, /* cbMaxToken */
-	L"NTLM", /* Name */
-	L"NTLM Security Package" /* Comment */
+	NTLM_SecPkgInfoW_Name, /* Name */
+	NTLM_SecPkgInfoW_Comment /* Comment */
 };
