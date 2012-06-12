@@ -118,11 +118,11 @@ static const char* const NTLM_NEGOTIATE_STRINGS[] =
 
 void ntlm_output_version(PStream s)
 {
-	/* The following version information was observed with Windows 7 */
+	/* Version Info for Windows 7 SP1 */
 
 	StreamWrite_UINT8(s, WINDOWS_MAJOR_VERSION_6); /* ProductMajorVersion (1 byte) */
 	StreamWrite_UINT8(s, WINDOWS_MINOR_VERSION_1); /* ProductMinorVersion (1 byte) */
-	StreamWrite_UINT16(s, 7600); /* ProductBuild (2 bytes) */
+	StreamWrite_UINT16(s, 7601); /* ProductBuild (2 bytes) */
 	StreamZero(s, 3); /* Reserved (3 bytes) */
 	StreamWrite_UINT8(s, NTLMSSP_REVISION_W2K3); /* NTLMRevisionCurrent (1 byte) */
 }
@@ -262,6 +262,9 @@ SECURITY_STATUS ntlm_write_NegotiateMessage(NTLM_CONTEXT* context, PSecBuffer bu
 
 	if (context->confidentiality)
 		NegotiateFlags |= NTLMSSP_NEGOTIATE_SEAL;
+
+	if (context->SendVersionInfo)
+		NegotiateFlags |= NTLMSSP_NEGOTIATE_VERSION;
 
 	context->NegotiateFlags = NegotiateFlags;
 
@@ -953,10 +956,10 @@ SECURITY_STATUS ntlm_write_AuthenticateMessage(NTLM_CONTEXT* context, PSecBuffer
 	if (context->ntlm_v2 < 1)
 		WorkstationLen = 0;
 
-	DomainNameLen = (UINT16) context->identity.DomainLength;
+	DomainNameLen = (UINT16) context->identity.DomainLength * 2;
 	DomainNameBuffer = (BYTE*) context->identity.Domain;
 
-	UserNameLen = (UINT16) context->identity.UserLength;
+	UserNameLen = (UINT16) context->identity.UserLength * 2;
 	UserNameBuffer = (BYTE*) context->identity.User;
 
 	LmChallengeResponseLen = (UINT16) 24;
